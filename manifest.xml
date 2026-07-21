@@ -32,7 +32,7 @@
     <Form xsi:type="ItemRead">
       <DesktopSettings>
         <SourceLocation DefaultValue="https://mailguard-inky.vercel.app/taskpane.html"/>
-        <RequestedHeight>550</RequestedHeight>
+        <RequestedHeight>450</RequestedHeight>
       </DesktopSettings>
     </Form>
   </FormSettings>
