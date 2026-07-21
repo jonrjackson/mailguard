@@ -27,7 +27,10 @@ module.exports = {
       filename: "taskpane.html",
     }),
     new CopyPlugin({
-      patterns: [{ from: "assets", to: "assets" }],
+      patterns: [
+        { from: "assets", to: "assets" },
+        { from: "manifest.xml", to: "manifest.xml" },
+      ],
     }),
   ],
 };
