@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<OfficeApp xmlns="http://schemas.microsoft.com/office/appforoffice/1.1"
+           xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+           xmlns:bt="http://schemas.microsoft.com/office/officeappbasictypes/1.0"
+           xsi:type="MailApp">
+
+  <!-- Replace YOUR-VERCEL-URL throughout this file with your actual Vercel deployment URL -->
+  <!-- Example: https://mailguard-abc123.vercel.app -->
+
+  <Id>C41FD75D-E813-407E-BDF4-2E6405446166</Id>
+  <Version>1.0.0.0</Version>
+  <ProviderName>MailGuard</ProviderName>
+  <DefaultLocale>en-US</DefaultLocale>
+  <DisplayName DefaultValue="MailGuard"/>
+  <Description DefaultValue="AI-powered spam and phishing detector for Outlook"/>
+  <IconUrl DefaultValue="https://YOUR-VERCEL-URL/assets/icon-64.png"/>
+  <HighResolutionIconUrl DefaultValue="https://YOUR-VERCEL-URL/assets/icon-128.png"/>
+  <SupportUrl DefaultValue="https://github.com/jonrjackson/scripts"/>
+
+  <AppDomains>
+    <AppDomain>https://YOUR-VERCEL-URL</AppDomain>
+  </AppDomains>
+
+  <Hosts>
+    <Host Name="Mailbox"/>
+  </Hosts>
+
+  <Requirements>
+    <Sets>
+      <Set Name="Mailbox" MinVersion="1.1"/>
+    </Sets>
+  </Requirements>
+
+  <FormSettings>
+    <Form xsi:type="ItemRead">
+      <DesktopSettings>
+        <SourceLocation DefaultValue="https://YOUR-VERCEL-URL/taskpane.html"/>
+        <RequestedHeight>550</RequestedHeight>
+      </DesktopSettings>
+    </Form>
+  </FormSettings>
+
+  <Permissions>ReadItem</Permissions>
+
+  <Rule xsi:type="RuleCollection" Mode="Or">
+    <Rule xsi:type="ItemIs" ItemType="Message" FormType="Read"/>
+  </Rule>
+
+</OfficeApp>
