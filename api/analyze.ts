@@ -14,7 +14,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(400).json({ error: "Email content required" });
   }
 
-  const prompt = `You are an email security analyst. Analyze the following email for spam, phishing, or scam indicators.
+  const prompt = `You are an email security analyst. Analyze the following email for spam, phishing, or scam indicators. Your goal is accurate verdicts — avoid both false positives on legitimate business email and false negatives on real threats.
 
 Email details:
 - From display name: ${sender || "Unknown"}
@@ -36,9 +36,22 @@ Rules:
 - verdict must be one of: SAFE, SUSPICIOUS, or SPAM
 - confidence is 0-100
 - flags should be an empty array [] if none are found
-- Keep flags concise and specific (e.g. "Reply-To differs from sender domain")
+- Keep flags concise and specific
+- Only flag something if it is genuinely suspicious in context — not just because it matches a surface-level pattern
 
-Consider: sender domain legitimacy, urgency or pressure tactics, requests for credentials or money, suspicious links, grammar/spelling issues, mismatched reply-to, spoofed display names.`;
+Verdicts:
+- SAFE: Legitimate email. Use this when the sender domain is established, content matches a normal business purpose, and any concerns are easily explained by normal business practice.
+- SUSPICIOUS: Genuine uncertainty. Use this only when there are specific, concrete indicators that cannot be explained by normal business practice.
+- SPAM: Clear spam or phishing with multiple strong indicators.
+
+Important context to apply:
+- Link protection/rewriting services (linkprotect.cudasvc.com, urldefense.com, safelinks.protection.outlook.com, proofpoint.com redirects, etc.) are legitimate email security tools used by businesses — do NOT flag these as suspicious redirects.
+- Transactional emails (invoices, payment receipts, shipping notifications) from domains matching the sender's company name are normal business email — generic greetings like "Valued Customer" are common and not a red flag on their own.
+- A physical address, phone number, and matching sender domain together are strong legitimacy signals.
+- Business acquisitions and account transfers (e.g. "transferred from Company X") are normal and not indicators of spoofing.
+- Weigh ALL available signals together. A single surface-level pattern match is not enough for SUSPICIOUS — require multiple concrete concerns.
+
+Consider: sender domain legitimacy, urgency or pressure tactics, requests for credentials or money, suspicious links (excluding known link protection services), grammar/spelling issues, mismatched reply-to, spoofed display names.`;
 
   try {
     const message = await client.messages.create({
