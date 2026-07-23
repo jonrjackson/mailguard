@@ -21,8 +21,11 @@ const VERDICT_STYLES = {
   SPAM:       { color: "#b91c1c", bg: "#fef2f2", icon: "✗", label: "Spam / Phishing" },
 };
 
-function parseEml(emlText: string) {
+function parseEml(rawEml: string) {
   const result = { sender: "", senderEmail: "", subject: "", replyTo: "", body: "" };
+
+  // Normalize all line endings to \n so the parser works regardless of CRLF/LF
+  const emlText = rawEml.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
 
   const splitIdx = emlText.indexOf("\n\n");
   if (splitIdx === -1) return result;
