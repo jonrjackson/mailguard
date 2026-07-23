@@ -126,10 +126,17 @@ function App() {
       const subject     = item.subject            || "";
       const replyTo     = item.replyTo?.length > 0 ? item.replyTo[0].emailAddress : "";
 
-      // Detect email-type attachments
+      // Detect email-type attachments — Outlook Win32 may return the type as a
+      // string ("item"), a number (1), or an enum object, so we cast to string.
       setAttachments(
         (item.attachments || [])
-          .filter((a: any) => a.attachmentType === "item")
+          .filter((a: any) => {
+            if (a.isInline) return false;
+            const t = String(a.attachmentType ?? "").toLowerCase();
+            return t === "item" || t === "1" ||
+              a.contentType === "message/rfc822" ||
+              /\.(eml|msg)$/i.test(a.name || "");
+          })
           .map((a: any) => ({ id: a.id, name: a.name || "Attached email" }))
       );
 
