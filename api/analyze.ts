@@ -8,7 +8,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const { subject, body, sender, senderEmail, replyTo } = req.body || {};
+  const { subject, body, sender, senderEmail, replyTo, returnPath, authResults } = req.body || {};
 
   if (!body && !subject) {
     return res.status(400).json({ error: "Email content required" });
@@ -20,6 +20,8 @@ Email details:
 - From display name: ${sender || "Unknown"}
 - From email address: ${senderEmail || "Unknown"}
 - Reply-To: ${replyTo || "(same as sender)"}
+- Return-Path: ${returnPath || "(not available)"}
+- Authentication results: ${authResults || "(not available)"}
 - Subject: ${subject || "(no subject)"}
 - Body:
 ${(body || "(no body)").slice(0, 3000)}
@@ -51,7 +53,18 @@ Important context to apply:
 - Business acquisitions and account transfers (e.g. "transferred from Company X") are normal and not indicators of spoofing.
 - Weigh ALL available signals together. A single surface-level pattern match is not enough for SUSPICIOUS — require multiple concrete concerns.
 
-Consider: sender domain legitimacy, urgency or pressure tactics, requests for credentials or money, suspicious links (excluding known link protection services), grammar/spelling issues, mismatched reply-to, spoofed display names.`;
+Spoofing and authentication signals (treat these as strong indicators):
+- If Return-Path domain differs from the From domain, this is a strong spoofing indicator — flag it.
+- If authentication results show SPF fail, DKIM fail, or DMARC fail, this is a strong spoofing indicator — flag it.
+- "dmarc=fail", "spf=fail", "dkim=fail" in the authentication results mean the email did not come from where it claims.
+
+QR code phishing (a rapidly growing attack vector):
+- If the email body mentions scanning a QR code, contains little readable text, or appears to be primarily an image, treat this as HIGH suspicion especially if the subject references documents, signatures, invoices, or HR notices.
+- Legitimate services like DocuSign, Adobe Sign, and payroll providers do NOT ask users to scan QR codes — they provide direct links. A QR code in a document-signing or HR email is almost always phishing.
+- AWS S3-hosted URLs (s3.amazonaws.com, s3.[region].amazonaws.com) used as destinations for document signing or login pages are phishing indicators — legitimate companies do not host their sign-in or document pages on S3 buckets.
+- Similarly, any URL that uses a consumer cloud storage service (Google Drive, Dropbox, OneDrive) as a login or document-signing destination is suspicious.
+
+Consider: sender domain legitimacy, Return-Path/From mismatch, SPF/DKIM/DMARC results, urgency or pressure tactics, requests for credentials or money, suspicious links, QR code presence, grammar/spelling issues, mismatched reply-to, spoofed display names.`;
 
   try {
     const message = await client.messages.create({

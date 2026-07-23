@@ -21,23 +21,11 @@ const VERDICT_STYLES = {
   SPAM:       { color: "#b91c1c", bg: "#fef2f2", icon: "✗", label: "Spam / Phishing" },
 };
 
-function parseEml(rawEml: string) {
-  const result = { sender: "", senderEmail: "", subject: "", replyTo: "", body: "" };
-
-  // Normalize all line endings to \n so the parser works regardless of CRLF/LF
-  const emlText = rawEml.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
-
-  const splitIdx = emlText.indexOf("\n\n");
-  if (splitIdx === -1) return result;
-
-  const headerSection = emlText.substring(0, splitIdx);
-  const bodySection   = emlText.substring(splitIdx + 2);
-
-  // Parse headers, handling folded (multi-line) values
+function parseHeaders(headerText: string): Record<string, string> {
   const headers: Record<string, string> = {};
   let curKey = "";
   let curVal = "";
-  for (const line of headerSection.split("\n")) {
+  for (const line of headerText.split("\n")) {
     if (/^\s+/.test(line) && curKey) {
       curVal += " " + line.trim();
     } else {
@@ -48,6 +36,22 @@ function parseEml(rawEml: string) {
     }
   }
   if (curKey) headers[curKey.toLowerCase()] = curVal;
+  return headers;
+}
+
+function parseEml(rawEml: string) {
+  const result = { sender: "", senderEmail: "", subject: "", replyTo: "", returnPath: "", authResults: "", body: "" };
+
+  // Normalize all line endings to \n so the parser works regardless of CRLF/LF
+  const emlText = rawEml.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+
+  const splitIdx = emlText.indexOf("\n\n");
+  if (splitIdx === -1) return result;
+
+  const headerSection = emlText.substring(0, splitIdx);
+  const bodySection   = emlText.substring(splitIdx + 2);
+
+  const headers = parseHeaders(headerSection);
 
   // From
   const from = headers["from"] || "";
@@ -66,6 +70,12 @@ function parseEml(rawEml: string) {
   const rt = headers["reply-to"] || "";
   const rtMatch = rt.match(/<(.+?)>/);
   result.replyTo = rtMatch ? rtMatch[1] : rt.trim();
+
+  // Return-Path and authentication results
+  const rp = headers["return-path"] || "";
+  const rpMatch = rp.match(/<(.+?)>/);
+  result.returnPath = rpMatch ? rpMatch[1] : rp.trim();
+  result.authResults = headers["authentication-results"] || headers["arc-authentication-results"] || "";
 
   // Body — extract text/plain from multipart, otherwise decode directly
   const ct = headers["content-type"] || "";
@@ -143,16 +153,33 @@ function App() {
           .map((a: any) => ({ id: a.id, name: a.name || "Attached email" }))
       );
 
-      const body = await new Promise<string>((resolve, reject) => {
-        item.body.getAsync(
-          (Office as any).CoercionType.Text,
-          (r: any) => r.status === (Office as any).AsyncResultStatus.Succeeded
-            ? resolve(r.value)
-            : reject(new Error("Could not read email body"))
-        );
-      });
+      const [body, allHeaders] = await Promise.all([
+        new Promise<string>((resolve, reject) => {
+          item.body.getAsync(
+            (Office as any).CoercionType.Text,
+            (r: any) => r.status === (Office as any).AsyncResultStatus.Succeeded
+              ? resolve(r.value)
+              : reject(new Error("Could not read email body"))
+          );
+        }),
+        new Promise<string>((resolve) => {
+          if (item.getAllInternetHeadersAsync) {
+            item.getAllInternetHeadersAsync((r: any) =>
+              resolve(r.status === (Office as any).AsyncResultStatus.Succeeded ? r.value : "")
+            );
+          } else {
+            resolve("");
+          }
+        }),
+      ]);
 
-      setResult(await callApi({ subject, body, sender, senderEmail, replyTo }));
+      const parsedHeaders = parseHeaders(allHeaders.replace(/\r\n/g, "\n").replace(/\r/g, "\n"));
+      const rp = parsedHeaders["return-path"] || "";
+      const rpMatch = rp.match(/<(.+?)>/);
+      const returnPath = rpMatch ? rpMatch[1] : rp.trim();
+      const authResults = parsedHeaders["authentication-results"] || parsedHeaders["arc-authentication-results"] || "";
+
+      setResult(await callApi({ subject, body, sender, senderEmail, replyTo, returnPath, authResults }));
     } catch (err: any) {
       setError(err.message || "Analysis failed. Please try again.");
     } finally {
